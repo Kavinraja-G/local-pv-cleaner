@@ -27,16 +27,17 @@ func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *PVCleanupController) PeriodicPVCleanup(ctx context.Context) error {
+	logger := klog.FromContext(ctx)
 	ticker := time.NewTicker(r.PeriodicCleanupInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			klog.Info("Stopping periodic cleanup")
+			logger.Info("Stopping periodic cleanup")
 			return nil
 		case <-ticker.C:
-			klog.Info("Running periodic orphaned PV cleanup")
+			logger.Info("Running periodic orphaned PV cleanup")
 			if err := r.cleanupOrphanedPVs(ctx); err != nil {
 				return err
 			}
