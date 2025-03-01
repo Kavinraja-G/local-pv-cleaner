@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -31,6 +32,8 @@ import (
 
 // Config struct for controller settings
 type Config struct {
+	LeaderElection          bool
+	LeaderElectionID        string
 	DryRun                  bool
 	EnablePeriodicCleanup   bool
 	EnableNodeWatchers      bool
@@ -42,6 +45,8 @@ type Config struct {
 func parseFlags() *Config {
 	cfg := &Config{}
 
+	pflag.BoolVar(&cfg.LeaderElection, "leader-election", true, "Enable leader election for high availability")
+	pflag.StringVar(&cfg.LeaderElectionID, "leader-election-id", "local-pv-cleanup-controller-lock", "Unique leader election ID")
 	pflag.BoolVar(&cfg.DryRun, "dry-run", false, "Run in dry-run mode without making actual changes")
 	pflag.StringSliceVar(&cfg.NodeSelectorKeys, "node-selector-keys", []string{"topology.topolvm.io/node"}, "Comma-separated list of labels used in PV node affinity to determine the node name")
 	pflag.BoolVar(&cfg.EnablePeriodicCleanup, "enable-periodic-cleanup", true, "Enable periodic cleanup of orphaned PVs")
@@ -63,7 +68,12 @@ func main() {
 		klog.Infof("Flag --%s=%s", flag.Name, flag.Value)
 	})
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
+	mgrOptions := manager.Options{
+		LeaderElection:   cfg.LeaderElection,
+		LeaderElectionID: cfg.LeaderElectionID,
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOptions)
 	if err != nil {
 		logger.Error(err, "Failed to create manager")
 	}
