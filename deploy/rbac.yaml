@@ -9,7 +9,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: local-pv-cleaner-role
-  namespace: default
+  namespace: local-pv-cleaner
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
