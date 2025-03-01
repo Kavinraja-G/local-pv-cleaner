@@ -67,7 +67,7 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context) error {
 		existingNodes[node.Name] = true
 	}
 
-	var deletedVolumes int = 0
+	var deletedVolumes = 0
 	// Iterate over PVs and delete orphaned ones which hosts are no longer available
 	for _, pv := range pvList.Items {
 		if pv.Spec.NodeAffinity != nil && pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimRetain {
