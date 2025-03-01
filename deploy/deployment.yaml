@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-pv-cleaner
+  namespace: local-pv-cleaner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-pv-cleaner
+  template:
+    metadata:
+      labels:
+        app: local-pv-cleaner
+    spec:
+      serviceAccountName: local-pv-cleaner
+      containers:
+        - name: local-pv-cleaner
+          image: ghcr.io/Kavinraja-G/local-pv-cleaner:latest
+          imagePullPolicy: Always
+          args:
+            - "--dry-run=true"
+            - "--enable-periodic-cleanup=true"
+            - "--enable-node-watchers=true"
+            - "--node-selector-keys=topology.topolvm.io/node"
+            - "--periodic-cleanup-interval=5m"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              memory: "256Mi"
