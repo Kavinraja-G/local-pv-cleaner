@@ -17,7 +17,7 @@ spec:
       serviceAccountName: local-pv-cleaner
       containers:
         - name: local-pv-cleaner
-          image: ghcr.io/Kavinraja-G/local-pv-cleaner:latest
+          image: ghcr.io/kavinraja-g/local-pv-cleaner:latest
           imagePullPolicy: Always
           args:
             - "--dry-run=true"
