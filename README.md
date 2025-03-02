@@ -29,6 +29,8 @@ The controller supports the following flags:
 | `--enable-periodic-cleanup` | `true` | Enable periodic cleanup of orphaned PVs. |
 | `--enable-node-watchers` | `true` | Enable watching for node deletions and delete local PVs in real-time. |
 | `--periodic-cleanup-interval` | `5m` | Interval for periodic orphaned PV cleanup (e.g., 5m, 10m, 1h). |
+| `--leader-election` | `true` | Enable leader election for high availability. |
+| `--leader-election-id` | `local-pv-cleanup-controller-lock` | Unique leader election ID. |
 
 ## Contributing
 Feel free to open [issues](https://github.com/Kavinraja-G/local-pv-cleaner/issues/new) or submit PRs if you have any improvements or bug fixes.
