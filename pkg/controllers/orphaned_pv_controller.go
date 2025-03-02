@@ -10,6 +10,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+// Reconcile function watches for node events and triggers the cleanupOrphanedPVs
 func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := klog.FromContext(ctx)
 	logger.Info("Reconciling for orphaned PVs...")
@@ -26,6 +27,7 @@ func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
+// PeriodicPVCleanup invokes the cleanupOrphanedPVs at specified interval
 func (r *PVCleanupController) PeriodicPVCleanup(ctx context.Context) error {
 	logger := klog.FromContext(ctx)
 	ticker := time.NewTicker(r.PeriodicCleanupInterval)
@@ -45,6 +47,7 @@ func (r *PVCleanupController) PeriodicPVCleanup(ctx context.Context) error {
 	}
 }
 
+// cleanupOrphanedPVs finds and deletes the PVs to which the hosts/nodes are no longer available
 func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context) error {
 	logger := klog.FromContext(ctx)
 
@@ -67,8 +70,8 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context) error {
 		existingNodes[node.Name] = true
 	}
 
-	var deletedVolumes = 0
 	// Iterate over PVs and delete orphaned ones which hosts are no longer available
+	var deletedVolumes = 0
 	for _, pv := range pvList.Items {
 		if pv.Spec.NodeAffinity != nil && pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimRetain {
 			for _, term := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
