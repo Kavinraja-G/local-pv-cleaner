@@ -18,7 +18,9 @@ package main
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -97,9 +99,20 @@ func main() {
 		}()
 	}
 
-	// Watch for node events and clean-up local PVs in real-time
+	// Watch for node delete events and clean-up local PVs in real-time
 	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
+		WithEventFilter(predicate.Funcs{
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return false
+			},
+			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				return false
+			},
+			CreateFunc: func(createEvent event.CreateEvent) bool {
+				return false
+			},
+		}).
 		Complete(controller); err != nil {
 		logger.Error(err, "Failed to create controller")
 		return
