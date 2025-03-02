@@ -27,7 +27,7 @@ spec:
             - "--periodic-cleanup-interval=5m"
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "25m"
+              memory: "100Mi"
             limits:
               memory: "256Mi"
