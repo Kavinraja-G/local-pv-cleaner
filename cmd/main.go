@@ -92,6 +92,7 @@ func main() {
 	// Periodic clean-up of local PVs and enabled by default when nodeWatchers are disabled
 	if cfg.EnablePeriodicCleanup || !cfg.EnableNodeWatchers {
 		go func() {
+			<-mgr.Elected()
 			err := controller.PeriodicPVCleanup(context.Background())
 			if err != nil {
 				logger.Error(err, "PeriodicPVCleanup failed")
