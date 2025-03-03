@@ -24,7 +24,7 @@ spec:
             - "--enable-periodic-cleanup=true"
             - "--enable-node-watchers=true"
             - "--node-selector-keys=topology.topolvm.io/node"
-            - "--periodic-cleanup-interval=5m"
+            - "--periodic-cleanup-interval=30m"
           resources:
             requests:
               cpu: "25m"
