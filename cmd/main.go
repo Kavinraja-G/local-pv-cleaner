@@ -51,9 +51,7 @@ func parseFlags() *Config {
 	pflag.StringVar(&cfg.LeaderElectionID, "leader-election-id", "local-pv-cleanup-controller-lock", "Unique leader election ID")
 	pflag.BoolVar(&cfg.DryRun, "dry-run", false, "Run in dry-run mode without making actual changes")
 	pflag.StringSliceVar(&cfg.NodeSelectorKeys, "node-selector-keys", []string{"topology.topolvm.io/node"}, "Comma-separated list of labels used in PV node affinity to determine the node name")
-	pflag.BoolVar(&cfg.EnablePeriodicCleanup, "enable-periodic-cleanup", true, "Enable periodic cleanup of orphaned PVs")
-	pflag.BoolVar(&cfg.EnableNodeWatchers, "enable-node-watchers", true, "Enable watching for node deletions and delete local PVs in real-time")
-	pflag.DurationVar(&cfg.PeriodicCleanupInterval, "periodic-cleanup-interval", 5*time.Minute, "Interval for periodic orphaned PV cleanup (e.g., 5m, 10m, 1h)")
+
 	pflag.Parse()
 
 	return cfg
@@ -81,23 +79,9 @@ func main() {
 	}
 
 	controller := &localPVCleaner.PVCleanupController{
-		Client:                  mgr.GetClient(),
-		DryRun:                  cfg.DryRun,
-		PeriodicCleanupInterval: cfg.PeriodicCleanupInterval,
-		EnableNodeWatchers:      cfg.EnableNodeWatchers,
-		EnablePeriodicCleanup:   cfg.EnablePeriodicCleanup,
-		NodeSelectorKeys:        cfg.NodeSelectorKeys,
-	}
-
-	// Periodic clean-up of local PVs and enabled by default when nodeWatchers are disabled
-	if cfg.EnablePeriodicCleanup || !cfg.EnableNodeWatchers {
-		go func() {
-			<-mgr.Elected()
-			err := controller.PeriodicPVCleanup(context.Background())
-			if err != nil {
-				logger.Error(err, "PeriodicPVCleanup failed")
-			}
-		}()
+		Client:           mgr.GetClient(),
+		DryRun:           cfg.DryRun,
+		NodeSelectorKeys: cfg.NodeSelectorKeys,
 	}
 
 	// Watch for node delete events and clean-up local PVs in real-time
