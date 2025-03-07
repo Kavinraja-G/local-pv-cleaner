@@ -102,7 +102,7 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 	return nil
 }
 
-// listVolumes lists the Persistent volumes in the cluster
+// listAllPVs lists the Persistent volumes in the cluster
 func (r *PVCleanupController) listAllPVs(ctx context.Context) ([]corev1.PersistentVolume, error) {
 	var allPVs []corev1.PersistentVolume
 	pvList := &corev1.PersistentVolumeList{}

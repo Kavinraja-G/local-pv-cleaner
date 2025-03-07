@@ -22,7 +22,7 @@ import (
 
 // NormalizePVs normalizes by extracting only Name & StorageClass
 func NormalizePVs(pvs []corev1.PersistentVolume) []map[string]string {
-	var result []map[string]string
+	result := make([]map[string]string, len(pvs))
 
 	for _, pv := range pvs {
 		result = append(result, map[string]string{
