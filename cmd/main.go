@@ -88,9 +88,9 @@ func main() {
 	// custom args for the controller
 	pflag.BoolVar(&dryRun, "dry-run", false, "Run in dry-run mode without making actual changes")
 	pflag.StringSliceVar(&nodeSelectorKeys, "node-selector-keys", []string{"topology.topolvm.io/node"},
-		"Comma-separated list of labels used in PV node affinity to determine the node name")
-	pflag.StringSliceVar(&storageClassNames, "storage-class-name", []string{"topolvm"},
-		"StorageClass Names used to filter the PVs")
+		"Comma-separated list of labels used in PV node affinity to determine the node name.")
+	pflag.StringSliceVar(&storageClassNames, "storage-class-names", []string{"topolvm"},
+		"Comma-separated list of StorageClass Names used to filter the PVs.")
 	opts := zap.Options{
 		// Development: true,
 	}

@@ -10,6 +10,7 @@ To address this, we need a solution that continuously monitors these scenarios a
 - **Automatic orphaned PV cleanup**: Identifies and deletes PVs that are not bound to any existing node.
 - **Dry-run mode**: Allows testing without performing actual deletions.
 - **Configurable node selector label**: Supports custom node selector labels for determining PV affinity. Since, CSI drivers define their own topology label.
+- **StorageClass Filters:** Allows filter the volumes based on multiple storage classes.
 
 ## Installation
 To deploy the Local PV Cleanup Controller in your Kubernetes cluster using Kustomize:
@@ -18,14 +19,13 @@ kubectl apply -k ./deploy
 ```
 
 ## Configuration
-The controller supports the following flags:
+The controller supports the following additional flags than the default flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--dry-run` | `false` | Run in dry-run mode without making actual changes. |
 | `--node-selector-keys` | `topology.topolvm.io/node` | Comma-separated list of labels used in PV node affinity to determine the node name. |
-| `--leader-election` | `true` | Enable leader election for high availability. |
-| `--leader-election-id` | `local-pv-cleanup-controller-lock` | Unique leader election ID. |
+| `--storage-class-names` | `topolvm` | Comma-separated list of StorageClass Names used to filter the PVs. |
 
 ## Contributing
 Feel free to open [issues](https://github.com/Kavinraja-G/local-pv-cleaner/issues/new) or submit PRs if you have any improvements or bug fixes.
