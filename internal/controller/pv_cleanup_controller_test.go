@@ -17,16 +17,161 @@ limitations under the License.
 package controller
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	"context"
+	"testing"
+
+	"github.com/kavinraja-g/local-pv-cleaner/test/utils"
+	"github.com/stretchr/testify/require"
+
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
-var _ = Describe("Node Controller", func() {
-	Context("When reconciling a resource", func() {
+func TestPVCleanupController_listAllPVs(t *testing.T) {
+	s := scheme.Scheme
+	_ = corev1.AddToScheme(s)
 
-		It("should successfully reconcile the resource", func() {
+	type args struct {
+		DryRun            bool
+		NodeSelectorKeys  []string
+		StorageClassNames []string
+	}
 
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+	// Define test-cases
+	var tests = []struct {
+		name    string
+		objects []client.Object
+		args    args
+		wantOut []corev1.PersistentVolume
+		wantErr bool
+	}{
+		{
+			name: "List PVs",
+			objects: []client.Object{
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}},
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}},
+			},
+			wantErr: false,
+			wantOut: []corev1.PersistentVolume{
+				{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}},
+			},
+		},
+		{
+			name:    "No PVs available",
+			objects: []client.Object{},
+			wantErr: false,
+			wantOut: []corev1.PersistentVolume{},
+		},
+	}
+
+	// Run tests
+	for _, tt := range tests {
+		ctx := context.Background()
+		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+
+		t.Run(tt.name, func(t *testing.T) {
+			r := &PVCleanupController{
+				Client:            fakeClient,
+				DryRun:            tt.args.DryRun,
+				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
+				StorageClassNames: tt.args.StorageClassNames,
+			}
+
+			allPVs, err := r.listAllPVs(ctx)
+
+			if tt.wantErr {
+				assert.Error(t, err, "Expected an error but got none")
+			} else {
+				require.NoError(t, err, "Unexpected error occurred")
+			}
+
+			got := utils.NormalizePVs(allPVs)
+			want := utils.NormalizePVs(tt.wantOut)
+
+			assert.ElementsMatch(t, want, got,
+				"Mismatch in retrieved PVs. Expected: %v, Got: %v", want, got)
 		})
-	})
-})
+	}
+}
+
+func TestPVCleanupController_filterPVByStorageClass(t *testing.T) {
+	s := scheme.Scheme
+	_ = corev1.AddToScheme(s)
+
+	type args struct {
+		DryRun            bool
+		NodeSelectorKeys  []string
+		StorageClassNames []string
+	}
+
+	// Define test-cases
+	var tests = []struct {
+		name    string
+		objects []client.Object
+		args    args
+		wantOut []corev1.PersistentVolume
+		wantErr bool
+	}{
+		{
+			name: "List filtered PVs with StorageClass",
+			args: args{StorageClassNames: []string{"foo"}},
+			objects: []client.Object{
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName: "foo",
+				}},
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName: "bar",
+				}},
+			},
+			wantErr: false,
+			wantOut: []corev1.PersistentVolume{
+				{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName: "foo",
+				}},
+			},
+		},
+		{
+			name:    "No filtered PVs available",
+			args:    args{StorageClassNames: []string{"foo"}},
+			objects: []client.Object{},
+			wantErr: false,
+			wantOut: []corev1.PersistentVolume{},
+		},
+	}
+
+	// Run tests
+	for _, tt := range tests {
+		ctx := context.Background()
+		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+
+		t.Run(tt.name, func(t *testing.T) {
+			r := &PVCleanupController{
+				Client:            fakeClient,
+				DryRun:            tt.args.DryRun,
+				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
+				StorageClassNames: tt.args.StorageClassNames,
+			}
+
+			allPVs, err := r.listAllPVs(ctx)
+			filteredPVs := r.filterPVByStorageClass(allPVs)
+
+			if tt.wantErr {
+				assert.Error(t, err, "Expected an error but got none")
+			} else {
+				require.NoError(t, err, "Unexpected error occurred")
+			}
+
+			got := utils.NormalizePVs(filteredPVs)
+			want := utils.NormalizePVs(tt.wantOut)
+
+			assert.ElementsMatch(t, want, got,
+				"Mismatch in filtered PVs. Expected: %v, Got: %v", want, got)
+		})
+	}
+}
