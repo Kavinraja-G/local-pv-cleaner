@@ -85,13 +85,19 @@ func main() {
 	pflag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 
+	// custom args for the controller
 	pflag.BoolVar(&dryRun, "dry-run", false, "Run in dry-run mode without making actual changes")
-	pflag.StringSliceVar(&nodeSelectorKeys, "node-selector-keys", []string{"topology.topolvm.io/node"}, "Comma-separated list of labels used in PV node affinity to determine the node name")
-	pflag.StringSliceVar(&storageClassNames, "storage-class-name", []string{"topolvm"}, "StorageClass Names used to filter the PVs")
+	pflag.StringSliceVar(&nodeSelectorKeys, "node-selector-keys", []string{"topology.topolvm.io/node"},
+		"Comma-separated list of labels used in PV node affinity to determine the node name")
+	pflag.StringSliceVar(&storageClassNames, "storage-class-name", []string{"topolvm"},
+		"StorageClass Names used to filter the PVs")
 	opts := zap.Options{
-		Development: true,
+		// Development: true,
 	}
-	//opts.BindFlags(flag.CommandLine)
+
+	// TODO: Check if we can use pflag to bind the zap default flags
+	// opts.BindFlags(flag.CommandLine)
+
 	pflag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
