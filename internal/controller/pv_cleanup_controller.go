@@ -57,37 +57,21 @@ func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
-func (r *PVCleanupController) listPVsByStorageClass(ctx context.Context) ([]corev1.PersistentVolume, error) {
-	var pvList corev1.PersistentVolumeList
-
-	// Fetch all PVs
-	if err := r.Client.List(ctx, &pvList); err != nil {
-		return nil, err
-	}
-
-	// Filter PVs by storageClassName
-	var filteredPVs []corev1.PersistentVolume
-	for _, pv := range pvList.Items {
-		if slices.Contains(r.StorageClassNames, pv.Spec.StorageClassName) {
-			filteredPVs = append(filteredPVs, pv)
-		}
-	}
-
-	return filteredPVs, nil
-}
-
-// cleanupOrphanedPVs finds and deletes the PVs to which the hosts/nodes are no longer available
+// cleanupOrphanedPVs list based on storageClass filters & deletes the PVs for which the hosts/nodes are no longer available
 func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNodeName string) error {
 	logger := log.FromContext(ctx)
 
 	// List PVs based on StorageClassName
-	filteredPVs, err := r.listPVsByStorageClass(ctx)
+	allPVs, err := r.listAllPVs(ctx)
 	if err != nil {
 		return err
 	}
 
+	// Filter PVs by storage classes
+	filteredPVs := r.filterPVByStorageClass(allPVs)
+
 	// Iterate over PVs and delete orphaned ones which hosts are no longer available
-	var deletedVolumes = 0
+	var deletedVolumes []string
 	for _, pv := range filteredPVs {
 		if pv.Spec.NodeAffinity != nil && pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimRetain {
 			for _, term := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
@@ -102,10 +86,10 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 								if err := r.Client.Delete(ctx, &pv); err != nil {
 									return err
 								}
-								deletedVolumes++
+								deletedVolumes = append(deletedVolumes, pv.Name)
 							}
 						} else {
-							logger.Info("PV is already attached to a node", "pv", pv.Name, "node", nodeName)
+							logger.Info("PV is still attached to a node", "pv", pv.Name, "node", nodeName)
 						}
 					}
 				}
@@ -113,9 +97,47 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 		}
 	}
 
-	logger.Info("Total Deleted orphaned PVs", "total", deletedVolumes)
+	logger.Info("Total orphaned PVs deleted", "count", len(deletedVolumes), "deleted_pvs", deletedVolumes)
 
 	return nil
+}
+
+// listVolumes lists the Persistent volumes in the cluster
+func (r *PVCleanupController) listAllPVs(ctx context.Context) ([]corev1.PersistentVolume, error) {
+	var allPVs []corev1.PersistentVolume
+	pvList := &corev1.PersistentVolumeList{}
+
+	opts := &client.ListOptions{Limit: PVListLimit}
+
+	for {
+		if err := r.Client.List(ctx, pvList, opts); err != nil {
+			return nil, err
+		}
+		allPVs = append(allPVs, pvList.Items...)
+
+		if len(pvList.Items) < PVListLimit || opts.Continue == "" {
+			break
+		}
+		opts.Continue = pvList.Continue
+	}
+
+	return allPVs, nil
+}
+
+// filterPVByStorageClass filters the list of PVs based on storage class names
+func (r *PVCleanupController) filterPVByStorageClass(pvList []corev1.PersistentVolume) []corev1.PersistentVolume {
+	if len(r.StorageClassNames) == 0 {
+		return pvList
+	}
+
+	var filteredPVs []corev1.PersistentVolume
+	for _, pv := range pvList {
+		if slices.Contains(r.StorageClassNames, pv.Spec.StorageClassName) {
+			filteredPVs = append(filteredPVs, pv)
+		}
+	}
+
+	return filteredPVs
 }
 
 // SetupWithManager sets up the controller with the Manager.
