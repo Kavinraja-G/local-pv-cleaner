@@ -19,6 +19,9 @@ package controller
 import (
 	"context"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
 	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -37,6 +40,27 @@ type PVCleanupController struct {
 	NodeSelectorKeys  []string
 	StorageClassNames []string
 	Scheme            *runtime.Scheme
+}
+
+var (
+	orphanedPVsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "local_pv_cleaner_orphaned_pvs_total",
+			Help: "Total number of Orphaned PVs detected",
+		},
+		[]string{"storage_class"},
+	)
+	deletedPVsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "local_pv_cleaner_deleted_pvs_total",
+			Help: "Total number of Orphaned PVs deleted",
+		},
+		[]string{"storage_class"},
+	)
+)
+
+func init() {
+	metrics.Registry.MustRegister(orphanedPVsTotal, deletedPVsTotal)
 }
 
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
@@ -81,11 +105,13 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 
 						if nodeName == deletedNodeName {
 							logger.Info("Found orphaned volume:", "pv", pv.Name, "node", nodeName)
+							orphanedPVsTotal.WithLabelValues(pv.Spec.StorageClassName).Inc()
 							if !r.DryRun {
 								logger.Info("Deleting orphaned volume:", "pv", pv.Name, "node", nodeName)
 								if err := r.Client.Delete(ctx, &pv); err != nil {
 									return err
 								}
+								deletedPVsTotal.WithLabelValues(pv.Spec.StorageClassName).Inc()
 								deletedVolumes = append(deletedVolumes, pv.Name)
 							}
 						} else {
@@ -97,7 +123,7 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 		}
 	}
 
-	logger.Info("Total orphaned PVs deleted", "count", len(deletedVolumes), "deleted_pvs", deletedVolumes)
+	logger.Info("Total deleted orphaned PVs", "total", len(deletedVolumes), "deleted_pvs", deletedVolumes)
 
 	return nil
 }
