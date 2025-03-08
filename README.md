@@ -13,9 +13,9 @@ To address this, we need a solution that continuously monitors these scenarios a
 - **StorageClass Filters:** Allows filter the volumes based on multiple storage classes.
 
 ## Installation
-To deploy the Local PV Cleanup Controller in your Kubernetes cluster using Kustomize:
+To deploy the Local PV Cleanup Controller in your Kubernetes cluster using Kustomize plugin in Kubectl:
 ```sh
-kubectl apply -k ./deploy
+kubectl apply -k ./config/default/
 ```
 
 ## Configuration
