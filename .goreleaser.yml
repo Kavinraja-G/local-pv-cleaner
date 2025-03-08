@@ -1,18 +1,5 @@
 project_name: local-pv-cleaner
 
-builds:
-  - id: local-pv-cleaner
-    binary: local-pv-cleaner
-    main: ./cmd/main.go
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-
 dockers:
   - image_templates: ["ghcr.io/kavinraja-g/{{ .ProjectName }}:{{ .Version }}-amd64"]
     dockerfile: Dockerfile
