@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -53,6 +54,19 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
+func parseLabelFilters(labels []string) map[string]string {
+	labelMap := make(map[string]string)
+
+	for _, label := range labels {
+		parts := strings.SplitN(label, "=", 2)
+		if len(parts) == 2 {
+			labelMap[parts[0]] = parts[1]
+		}
+	}
+
+	return labelMap
+}
+
 // nolint:gocyclo
 func main() {
 	var metricsAddr string
@@ -65,6 +79,7 @@ func main() {
 	var dryRun bool
 	var nodeSelectorKeys []string
 	var storageClassNames []string
+	var nodeLabelSelectors []string
 
 	var tlsOpts []func(*tls.Config)
 	pflag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
@@ -86,7 +101,9 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 
 	// custom args for the controller
-	pflag.BoolVar(&dryRun, "dry-run", false, "Run in dry-run mode without making actual changes")
+	pflag.BoolVar(&dryRun, "dry-run", false, "Run in dry-run mode without making actual changes.")
+	pflag.StringSliceVar(&nodeLabelSelectors, "node-label-selectors", nil,
+		"Comma-separated list of labels in the format of labelKey=labelValue used to filter the node reconciler.")
 	pflag.StringSliceVar(&nodeSelectorKeys, "node-selector-keys", []string{"topology.topolvm.io/node"},
 		"Comma-separated list of labels used in PV node affinity to determine the node name.")
 	pflag.StringSliceVar(&storageClassNames, "storage-class-names", []string{"topolvm"},
@@ -99,6 +116,9 @@ func main() {
 	// opts.BindFlags(flag.CommandLine)
 
 	pflag.Parse()
+
+	// Custom parsers for flags
+	nodeLabelFilterMap := parseLabelFilters(nodeLabelSelectors)
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -210,6 +230,7 @@ func main() {
 		DryRun:            dryRun,
 		NodeSelectorKeys:  nodeSelectorKeys,
 		StorageClassNames: storageClassNames,
+		NodeLabelFilters:  nodeLabelFilterMap,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "local-pv-cleaner")
 		os.Exit(1)

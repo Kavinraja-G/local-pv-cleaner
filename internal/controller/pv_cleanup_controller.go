@@ -36,10 +36,11 @@ import (
 // PVCleanupController reconciles a Node object
 type PVCleanupController struct {
 	client.Client
+	Scheme            *runtime.Scheme
 	DryRun            bool
 	NodeSelectorKeys  []string
 	StorageClassNames []string
-	Scheme            *runtime.Scheme
+	NodeLabelFilters  map[string]string
 }
 
 var (
@@ -179,6 +180,18 @@ func (r *PVCleanupController) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				return false
+			},
+			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+				nodeLabels := deleteEvent.Object.GetLabels()
+
+				// Do not reconcile if the deleted node doesn't have the required label filters
+				for key, expectedValue := range r.NodeLabelFilters {
+					if val, exists := nodeLabels[key]; !exists || val != expectedValue {
+						return false
+					}
+				}
+
+				return true
 			},
 		}).
 		Named("local-pv-cleaner").
