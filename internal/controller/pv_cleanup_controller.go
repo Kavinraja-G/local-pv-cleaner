@@ -104,10 +104,10 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 						nodeName := exp.Values[0]
 
 						if nodeName == deletedNodeName {
-							logger.Info("Found orphaned volume:", "pv", pv.Name, "node", nodeName)
+							logger.Info("Found orphaned volume", "pv", pv.Name, "node", nodeName)
 							orphanedPVsTotal.WithLabelValues(pv.Spec.StorageClassName).Inc()
 							if !r.DryRun {
-								logger.Info("Deleting orphaned volume:", "pv", pv.Name, "node", nodeName)
+								logger.Info("Deleting orphaned volume", "pv", pv.Name, "node", nodeName)
 								if err := r.Client.Delete(ctx, &pv); err != nil {
 									return err
 								}

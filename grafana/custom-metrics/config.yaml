@@ -1,0 +1,11 @@
+# TODO: Add custom metrics based dashboard later
+---
+customMetrics:
+  - metric: local_pv_cleaner_orphaned_pvs_total
+    type: counter
+    expr: sum(local_pv_cleaner_orphaned_pvs_total) by (storage_class)
+    unit: number
+  - metric: local_pv_cleaner_deleted_pvs_total
+    type: counter
+    expr: sum(local_pv_cleaner_deleted_pvs_total) by (storage_class)
+    unit: number

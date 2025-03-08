@@ -5,6 +5,8 @@
 domain: localpvcleaner.io
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  grafana.kubebuilder.io/v1-alpha: {}
 projectName: local-pv-cleaner
 repo: github.com/kavinraja-g/local-pv-cleaner
 resources:
