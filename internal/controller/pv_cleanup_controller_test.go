@@ -175,3 +175,111 @@ func TestPVCleanupController_filterPVByStorageClass(t *testing.T) {
 		})
 	}
 }
+
+func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
+	s := scheme.Scheme
+	_ = corev1.AddToScheme(s)
+
+	type args struct {
+		DryRun            bool
+		NodeSelectorKeys  []string
+		StorageClassNames []string
+	}
+
+	// Define test-cases
+	var tests = []struct {
+		name            string
+		objects         []client.Object
+		args            args
+		deletedNodeName string
+		orphanedPVNames []string
+		wantErr         bool
+	}{
+		{
+			name: "Cleanup orphaned PVs",
+			args: args{StorageClassNames: []string{"bar"}, NodeSelectorKeys: []string{"node-selector-key"}},
+			objects: []client.Object{
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName: "foo",
+				}},
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName:              "bar",
+					PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+					NodeAffinity: &corev1.VolumeNodeAffinity{Required: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:    "node-selector-key",
+										Values: []string{"node-01"},
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			wantErr:         false,
+			deletedNodeName: "node-01",
+			orphanedPVNames: []string{"pv-2"},
+		}, {
+			name: "No orphaned PVs",
+			args: args{StorageClassNames: []string{"bar"}, NodeSelectorKeys: []string{"node-selector-key"}},
+			objects: []client.Object{
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName:              "bar",
+					PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+				}},
+				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}, Spec: corev1.PersistentVolumeSpec{
+					StorageClassName:              "bar",
+					PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+					NodeAffinity: &corev1.VolumeNodeAffinity{Required: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:    "node-selector-key",
+										Values: []string{"node-02"},
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			wantErr:         false,
+			deletedNodeName: "node-01",
+			orphanedPVNames: []string{},
+		},
+	}
+
+	// Run tests
+	for _, tt := range tests {
+		ctx := context.Background()
+		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+
+		t.Run(tt.name, func(t *testing.T) {
+			r := &PVCleanupController{
+				Client:            fakeClient,
+				DryRun:            tt.args.DryRun,
+				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
+				StorageClassNames: tt.args.StorageClassNames,
+			}
+
+			err := r.cleanupOrphanedPVs(ctx, tt.deletedNodeName)
+
+			if tt.wantErr {
+				assert.Error(t, err, "Expected an error but got none")
+			} else {
+				require.NoError(t, err, "Unexpected error occurred")
+			}
+
+			// Assert deleted PVs
+			for _, pvName := range tt.orphanedPVNames {
+				deletedPV := &corev1.PersistentVolume{}
+				err := fakeClient.Get(ctx, client.ObjectKey{Name: pvName}, deletedPV)
+				assert.Error(t, err, "Expected PV %s to be deleted", pvName)
+			}
+		})
+	}
+}
