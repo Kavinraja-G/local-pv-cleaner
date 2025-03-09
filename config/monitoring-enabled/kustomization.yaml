@@ -1,0 +1,12 @@
+namespace: local-pv-cleaner
+
+resources:
+  - ../base
+  - allow_metrics_traffic.yaml
+  - metrics_service.yaml
+  - service-monitor.yaml
+
+patches:
+  - path: manager_metrics_patch.yaml
+    target:
+      kind: Deployment

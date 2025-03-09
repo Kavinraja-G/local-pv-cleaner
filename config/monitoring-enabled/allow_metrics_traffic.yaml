@@ -6,13 +6,10 @@ kind: NetworkPolicy
 metadata:
   labels:
     app.kubernetes.io/name: local-pv-cleaner
-    app.kubernetes.io/managed-by: kustomize
-  name: allow-metrics-traffic
-  namespace: system
+  name: local-pv-cleaner-allow-metrics-traffic
 spec:
   podSelector:
     matchLabels:
-      control-plane: controller-manager
       app.kubernetes.io/name: local-pv-cleaner
   policyTypes:
     - Ingress
@@ -21,7 +18,7 @@ spec:
     - from:
       - namespaceSelector:
           matchLabels:
-            metrics: enabled  # Only from namespaces with this label
+            prometheus.io/scraper: "true"
       ports:
-        - port: 8443
+        - port: 8080
           protocol: TCP

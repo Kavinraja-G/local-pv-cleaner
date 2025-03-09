@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-pv-cleaner
+  namespace: system
+  labels:
+    app.kubernetes.io/name: local-pv-cleaner
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: local-pv-cleaner
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: local-pv-cleaner
+      labels:
+        app.kubernetes.io/name: local-pv-cleaner
+    spec:
+
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - command:
+            - /manager
+          args:
+            - --leader-elect
+            - --health-probe-bind-address=:8081
+          image: ghcr.io/kavinraja-g/local-pv-cleaner:latest
+          name: local-pv-cleaner
+          ports: []
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {}
+          volumeMounts: []
+      volumes: []
+      serviceAccountName: local-pv-cleaner
+      terminationGracePeriodSeconds: 10

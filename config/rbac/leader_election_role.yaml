@@ -4,8 +4,7 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/name: local-pv-cleaner
-    app.kubernetes.io/managed-by: kustomize
-  name: leader-election-role
+  name: local-pv-cleaner-leader-election-role
 rules:
 - apiGroups:
   - ""

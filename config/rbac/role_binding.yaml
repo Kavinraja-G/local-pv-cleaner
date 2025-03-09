@@ -3,13 +3,12 @@ kind: ClusterRoleBinding
 metadata:
   labels:
     app.kubernetes.io/name: local-pv-cleaner
-    app.kubernetes.io/managed-by: kustomize
-  name: manager-rolebinding
+  name: local-pv-cleaner-rb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: manager-role
+  name: local-pv-cleaner-role
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
-  namespace: system
+  name: local-pv-cleaner
+  namespace: local-pv-cleaner
