@@ -4,7 +4,7 @@ resources:
   - ../base
   - allow_metrics_traffic.yaml
   - metrics_service.yaml
-  - service-monitor.yaml
+  - service_monitor.yaml
 
 patches:
   - path: manager_metrics_patch.yaml
