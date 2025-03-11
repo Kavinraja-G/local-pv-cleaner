@@ -73,8 +73,8 @@ func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Check if the request is for a Node
 	var node corev1.Node
 	if err := r.Client.Get(ctx, req.NamespacedName, &node); err != nil {
-		logger.Info("Node not found, checking for orphaned PVs...")
-		if err := r.cleanupOrphanedPVs(ctx, node.Name); err != nil {
+		logger.Info("Node not found, checking for orphaned PVs", "node", req.Name)
+		if err := r.cleanupOrphanedPVs(ctx, req.Name); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -88,12 +88,14 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 
 	// List PVs based on StorageClassName
 	allPVs, err := r.listAllPVs(ctx)
+	logger.Info("Total PVs found", "count", len(allPVs))
 	if err != nil {
 		return err
 	}
 
 	// Filter PVs by storage classes
 	filteredPVs := r.filterPVByStorageClass(allPVs)
+	logger.Info("Total filtered PVs based on StorageClasses", "count", len(filteredPVs))
 
 	// Iterate over PVs and delete orphaned ones which hosts are no longer available
 	var deletedVolumes []string
