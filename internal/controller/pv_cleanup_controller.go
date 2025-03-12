@@ -144,10 +144,10 @@ func (r *PVCleanupController) listAllPVs(ctx context.Context) ([]corev1.Persiste
 		}
 		allPVs = append(allPVs, pvList.Items...)
 
-		if len(pvList.Items) < PVListLimit || opts.Continue == "" {
+		if len(pvList.Items) < PVListLimit || pvList.ListMeta.Continue == "" {
 			break
 		}
-		opts.Continue = pvList.Continue
+		opts.Continue = pvList.ListMeta.Continue
 	}
 
 	return allPVs, nil
