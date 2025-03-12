@@ -20,13 +20,16 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/kavinraja-g/local-pv-cleaner/test/utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8sFake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	crFake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -73,11 +76,17 @@ func TestPVCleanupController_listAllPVs(t *testing.T) {
 	// Run tests
 	for _, tt := range tests {
 		ctx := context.Background()
-		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+		fakeClient := crFake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+
+		var runtimeObjects []runtime.Object
+		for _, obj := range tt.objects {
+			runtimeObjects = append(runtimeObjects, obj.DeepCopyObject())
+		}
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := &PVCleanupController{
 				Client:            fakeClient,
+				Clientset:         k8sFake.NewClientset(runtimeObjects...),
 				DryRun:            tt.args.DryRun,
 				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
 				StorageClassNames: tt.args.StorageClassNames,
@@ -148,11 +157,17 @@ func TestPVCleanupController_filterPVByStorageClass(t *testing.T) {
 	// Run tests
 	for _, tt := range tests {
 		ctx := context.Background()
-		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+		fakeClient := crFake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+
+		var runtimeObjects []runtime.Object
+		for _, obj := range tt.objects {
+			runtimeObjects = append(runtimeObjects, obj.DeepCopyObject())
+		}
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := &PVCleanupController{
 				Client:            fakeClient,
+				Clientset:         k8sFake.NewClientset(runtimeObjects...),
 				DryRun:            tt.args.DryRun,
 				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
 				StorageClassNames: tt.args.StorageClassNames,
@@ -256,11 +271,17 @@ func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
 	// Run tests
 	for _, tt := range tests {
 		ctx := context.Background()
-		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+		fakeClient := crFake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
+
+		var runtimeObjects []runtime.Object
+		for _, obj := range tt.objects {
+			runtimeObjects = append(runtimeObjects, obj.DeepCopyObject())
+		}
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := &PVCleanupController{
 				Client:            fakeClient,
+				Clientset:         k8sFake.NewClientset(runtimeObjects...),
 				DryRun:            tt.args.DryRun,
 				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
 				StorageClassNames: tt.args.StorageClassNames,

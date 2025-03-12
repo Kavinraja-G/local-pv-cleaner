@@ -20,14 +20,16 @@ import (
 	"context"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
-
-	"k8s.io/utils/strings/slices"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/strings/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -36,6 +38,7 @@ import (
 // PVCleanupController reconciles a Node object
 type PVCleanupController struct {
 	client.Client
+	Clientset         kubernetes.Interface
 	Scheme            *runtime.Scheme
 	DryRun            bool
 	NodeSelectorKeys  []string
@@ -133,13 +136,15 @@ func (r *PVCleanupController) cleanupOrphanedPVs(ctx context.Context, deletedNod
 
 // listAllPVs lists the Persistent volumes in the cluster
 func (r *PVCleanupController) listAllPVs(ctx context.Context) ([]corev1.PersistentVolume, error) {
-	var allPVs []corev1.PersistentVolume
+	allPVs := make([]corev1.PersistentVolume, 0)
 
-	opts := &client.ListOptions{Limit: PVListLimit}
+	opts := metav1.ListOptions{
+		Limit: PVListLimit,
+	}
 
 	for {
-		pvList := &corev1.PersistentVolumeList{}
-		if err := r.Client.List(ctx, pvList, opts); err != nil {
+		pvList, err := r.Clientset.CoreV1().PersistentVolumes().List(ctx, opts)
+		if err != nil {
 			return nil, err
 		}
 		allPVs = append(allPVs, pvList.Items...)
@@ -171,8 +176,18 @@ func (r *PVCleanupController) filterPVByStorageClass(pvList []corev1.PersistentV
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PVCleanupController) SetupWithManager(mgr ctrl.Manager) error {
+
+	// Init k8s clientset
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return err
+	}
+
+	r.Clientset = clientset
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 1}).
 		WithEventFilter(predicate.Funcs{
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
 				return false
