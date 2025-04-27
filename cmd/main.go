@@ -93,10 +93,11 @@ func main() {
 		"Comma-separated list of labels used in PV node affinity to determine the node name.")
 	pflag.StringSliceVar(&storageClassNames, "storage-class-names", []string{"topolvm"},
 		"Comma-separated list of StorageClass Names used to filter the PVs.")
-	pflag.DurationVar(&requeueDuration, "requeue-duration", 15*time.Minute, "Duration for PV requeue if the node exists (e.g., 5m, 10m, 1h)")
+	pflag.DurationVar(&requeueDuration, "requeue-duration", 15*time.Minute,
+		"Duration for PV requeue if the node exists (e.g., 5m, 10m, 1h)")
 
 	opts := zap.Options{
-		//Development: true,
+		// Development: true,
 	}
 
 	// TODO: Check if we can use pflag to bind the zap default flags

@@ -20,14 +20,10 @@ import (
 	"context"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/kavinraja-g/local-pv-cleaner/test/utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	k8sFake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crFake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -35,184 +31,24 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func TestPVCleanupController_listAllPVs(t *testing.T) {
+func TestPVCleanupController_deleteOrphanedPVs(t *testing.T) {
 	s := scheme.Scheme
 	_ = corev1.AddToScheme(s)
 
 	type args struct {
-		DryRun            bool
-		NodeSelectorKeys  []string
-		StorageClassNames []string
+		DryRun bool
 	}
 
 	// Define test-cases
 	var tests = []struct {
-		name    string
-		objects []client.Object
-		args    args
-		wantOut []corev1.PersistentVolume
-		wantErr bool
-	}{
-		{
-			name: "List PVs",
-			objects: []client.Object{
-				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}},
-				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}},
-			},
-			wantErr: false,
-			wantOut: []corev1.PersistentVolume{
-				{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}},
-			},
-		},
-		{
-			name:    "No PVs available",
-			objects: []client.Object{},
-			wantErr: false,
-			wantOut: []corev1.PersistentVolume{},
-		},
-	}
-
-	// Run tests
-	for _, tt := range tests {
-		ctx := context.Background()
-		fakeClient := crFake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
-
-		var runtimeObjects []runtime.Object
-		for _, obj := range tt.objects {
-			runtimeObjects = append(runtimeObjects, obj.DeepCopyObject())
-		}
-
-		t.Run(tt.name, func(t *testing.T) {
-			r := &PVCleanupController{
-				Client:            fakeClient,
-				Clientset:         k8sFake.NewClientset(runtimeObjects...),
-				DryRun:            tt.args.DryRun,
-				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
-				StorageClassNames: tt.args.StorageClassNames,
-			}
-
-			allPVs, err := r.listAllPVs(ctx)
-
-			if tt.wantErr {
-				assert.Error(t, err, "Expected an error but got none")
-			} else {
-				require.NoError(t, err, "Unexpected error occurred")
-			}
-
-			got := utils.NormalizePVs(allPVs)
-			want := utils.NormalizePVs(tt.wantOut)
-
-			assert.ElementsMatch(t, want, got,
-				"Mismatch in retrieved PVs. Expected: %v, Got: %v", want, got)
-		})
-	}
-}
-
-func TestPVCleanupController_filterPVByStorageClass(t *testing.T) {
-	s := scheme.Scheme
-	_ = corev1.AddToScheme(s)
-
-	type args struct {
-		DryRun            bool
-		NodeSelectorKeys  []string
-		StorageClassNames []string
-	}
-
-	// Define test-cases
-	var tests = []struct {
-		name    string
-		objects []client.Object
-		args    args
-		wantOut []corev1.PersistentVolume
-		wantErr bool
-	}{
-		{
-			name: "List filtered PVs with StorageClass",
-			args: args{StorageClassNames: []string{"foo"}},
-			objects: []client.Object{
-				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
-					StorageClassName: "foo",
-				}},
-				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-2"}, Spec: corev1.PersistentVolumeSpec{
-					StorageClassName: "bar",
-				}},
-			},
-			wantErr: false,
-			wantOut: []corev1.PersistentVolume{
-				{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
-					StorageClassName: "foo",
-				}},
-			},
-		},
-		{
-			name:    "No filtered PVs available",
-			args:    args{StorageClassNames: []string{"foo"}},
-			objects: []client.Object{},
-			wantErr: false,
-			wantOut: []corev1.PersistentVolume{},
-		},
-	}
-
-	// Run tests
-	for _, tt := range tests {
-		ctx := context.Background()
-		fakeClient := crFake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
-
-		var runtimeObjects []runtime.Object
-		for _, obj := range tt.objects {
-			runtimeObjects = append(runtimeObjects, obj.DeepCopyObject())
-		}
-
-		t.Run(tt.name, func(t *testing.T) {
-			r := &PVCleanupController{
-				Client:            fakeClient,
-				Clientset:         k8sFake.NewClientset(runtimeObjects...),
-				DryRun:            tt.args.DryRun,
-				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
-				StorageClassNames: tt.args.StorageClassNames,
-			}
-
-			allPVs, err := r.listAllPVs(ctx)
-			filteredPVs := r.filterPVByStorageClass(allPVs)
-
-			if tt.wantErr {
-				assert.Error(t, err, "Expected an error but got none")
-			} else {
-				require.NoError(t, err, "Unexpected error occurred")
-			}
-
-			got := utils.NormalizePVs(filteredPVs)
-			want := utils.NormalizePVs(tt.wantOut)
-
-			assert.ElementsMatch(t, want, got,
-				"Mismatch in filtered PVs. Expected: %v, Got: %v", want, got)
-		})
-	}
-}
-
-func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
-	s := scheme.Scheme
-	_ = corev1.AddToScheme(s)
-
-	type args struct {
-		DryRun            bool
-		NodeSelectorKeys  []string
-		StorageClassNames []string
-	}
-
-	// Define test-cases
-	var tests = []struct {
-		name            string
-		objects         []client.Object
-		args            args
-		deletedNodeName string
-		orphanedPVNames []string
-		wantErr         bool
+		name       string
+		objects    []client.Object
+		args       args
+		orphanedPV []corev1.PersistentVolume
+		wantErr    bool
 	}{
 		{
 			name: "Cleanup orphaned PVs",
-			args: args{StorageClassNames: []string{"bar"}, NodeSelectorKeys: []string{"node-selector-key"}},
 			objects: []client.Object{
 				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
 					StorageClassName: "foo",
@@ -234,12 +70,12 @@ func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
 					}},
 				}},
 			},
-			wantErr:         false,
-			deletedNodeName: "node-01",
-			orphanedPVNames: []string{"pv-2"},
+			wantErr: false,
+			orphanedPV: []corev1.PersistentVolume{
+				{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}},
+			},
 		}, {
-			name: "No orphaned PVs",
-			args: args{StorageClassNames: []string{"bar"}, NodeSelectorKeys: []string{"node-selector-key"}},
+			name: "Orphaned PV not found",
 			objects: []client.Object{
 				&corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "pv-1"}, Spec: corev1.PersistentVolumeSpec{
 					StorageClassName:              "bar",
@@ -262,9 +98,10 @@ func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
 					}},
 				}},
 			},
-			wantErr:         false,
-			deletedNodeName: "node-01",
-			orphanedPVNames: []string{},
+			wantErr: true,
+			orphanedPV: []corev1.PersistentVolume{
+				{ObjectMeta: metav1.ObjectMeta{Name: "non-exist-pv"}},
+			},
 		},
 	}
 
@@ -273,21 +110,13 @@ func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
 		ctx := context.Background()
 		fakeClient := crFake.NewClientBuilder().WithScheme(s).WithObjects(tt.objects...).Build()
 
-		var runtimeObjects []runtime.Object
-		for _, obj := range tt.objects {
-			runtimeObjects = append(runtimeObjects, obj.DeepCopyObject())
-		}
-
 		t.Run(tt.name, func(t *testing.T) {
 			r := &PVCleanupController{
-				Client:            fakeClient,
-				Clientset:         k8sFake.NewClientset(runtimeObjects...),
-				DryRun:            tt.args.DryRun,
-				NodeSelectorKeys:  tt.args.NodeSelectorKeys,
-				StorageClassNames: tt.args.StorageClassNames,
+				Client: fakeClient,
+				DryRun: tt.args.DryRun,
 			}
 
-			err := r.cleanupOrphanedPVs(ctx, tt.deletedNodeName)
+			err := r.deleteOrphanedPV(ctx, tt.orphanedPV[0])
 
 			if tt.wantErr {
 				assert.Error(t, err, "Expected an error but got none")
@@ -296,10 +125,10 @@ func TestPVCleanupController_cleanupOrphanedPVs(t *testing.T) {
 			}
 
 			// Assert deleted PVs
-			for _, pvName := range tt.orphanedPVNames {
+			for _, pv := range tt.orphanedPV {
 				deletedPV := &corev1.PersistentVolume{}
-				err := fakeClient.Get(ctx, client.ObjectKey{Name: pvName}, deletedPV)
-				assert.Error(t, err, "Expected PV %s to be deleted", pvName)
+				err := fakeClient.Get(ctx, client.ObjectKey{Name: pv.Name}, deletedPV)
+				assert.Error(t, err, "Expected PV %s to be deleted", pv.Name)
 			}
 		})
 	}
