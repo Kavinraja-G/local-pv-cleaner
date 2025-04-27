@@ -18,10 +18,11 @@ package main
 
 import (
 	"crypto/tls"
-	"github.com/spf13/pflag"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/spf13/pflag"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
