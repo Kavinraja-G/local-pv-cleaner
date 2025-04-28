@@ -31,6 +31,67 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
+func TestPVCleanupController_getNodeNameFromAffinity(t *testing.T) {
+	var tests = []struct {
+		name             string
+		affinity         *corev1.VolumeNodeAffinity
+		nodeSelectorKeys []string
+		expectedNodeName string
+	}{
+		{
+			name:             "Nil Affinity",
+			affinity:         nil,
+			nodeSelectorKeys: []string{"key1"},
+			expectedNodeName: "",
+		},
+		{
+			name: "No matching NodeSelectorKey",
+			affinity: &corev1.VolumeNodeAffinity{
+				Required: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:    "different-key",
+									Values: []string{"node-01"},
+								},
+							},
+						},
+					},
+				},
+			},
+			nodeSelectorKeys: []string{"key1"},
+			expectedNodeName: "",
+		},
+		{
+			name: "Matching NodeSelectorKey",
+			affinity: &corev1.VolumeNodeAffinity{
+				Required: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:    "key1",
+									Values: []string{"node-01"},
+								},
+							},
+						},
+					},
+				},
+			},
+			nodeSelectorKeys: []string{"key1"},
+			expectedNodeName: "node-01",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nodeName := getNodeNameFromAffinity(tt.affinity, tt.nodeSelectorKeys)
+			assert.Equal(t, tt.expectedNodeName, nodeName)
+		})
+	}
+}
+
 func TestPVCleanupController_deleteOrphanedPVs(t *testing.T) {
 	s := scheme.Scheme
 	_ = corev1.AddToScheme(s)
