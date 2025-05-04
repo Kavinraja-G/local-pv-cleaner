@@ -1,5 +1,5 @@
 # local-pv-cleaner
-Simple K8s controller to clean-up orphaned local PVs (using nvme's) after nodes get deleted.
+Simple K8s controller to clean-up orphaned local PVs (using nvme's).
 
 ## Problem
 We often use projects like [TopoLVM](https://github.com/topolvm/topolvm) and [OpenEBS LocalPV](https://openebs.io/docs/2.12.x/concepts/localpv) to provision PersistentVolumes (PVs) backed by ephemeral local-instance storage, such as NVMe disks on AWS EC2 instances. Even when the retention policy is set to `Retain`, the underlying storage is lost when the instance shuts down. This results in orphaned PVs, leading to errors when Kubernetes attempts to reattach them especially if a new node reuses the same IP address. Most of the CSI drivers won't delete the PVs in these scenarios.
