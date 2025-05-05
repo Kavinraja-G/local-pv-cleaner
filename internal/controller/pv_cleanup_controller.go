@@ -93,10 +93,12 @@ func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		// node doesn't exist, delete PV
 		logger.V(1).Info("Node not found for PV, deleting PV", "pv", pv.Name, "node", nodeName)
-		err = r.deleteOrphanedPV(ctx, pv)
-		if err != nil {
-			return ctrl.Result{}, err
+		if delErr := r.deleteOrphanedPV(ctx, pv); delErr != nil {
+			logger.Error(err, "Failed to delete orphaned PV", "pv", pv.Name, "node", nodeName)
+			return ctrl.Result{}, delErr
 		}
+
+		return ctrl.Result{}, nil
 	}
 
 	// node exists, requeue after X minutes
