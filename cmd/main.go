@@ -18,6 +18,7 @@ package main
 
 import (
 	"crypto/tls"
+	"flag"
 	"os"
 	"path/filepath"
 	"time"
@@ -100,9 +101,8 @@ func main() {
 		// Development: true,
 	}
 
-	// TODO: Check if we can use pflag to bind the zap default flags
-	// opts.BindFlags(flag.CommandLine)
-
+	opts.BindFlags(flag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
