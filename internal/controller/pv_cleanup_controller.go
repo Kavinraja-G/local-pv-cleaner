@@ -102,6 +102,7 @@ func (r *PVCleanupController) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// node exists, requeue after X minutes
+	logger.V(1).Info("Node exists Requeue PV", "pv", pv.Name, "node", nodeName)
 	return ctrl.Result{RequeueAfter: r.RequeueDuration}, nil
 }
 
